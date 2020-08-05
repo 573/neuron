@@ -1,0 +1,76 @@
+name: "CI aarch64"
+on:
+  pull_request:
+  push:
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    env:
+      MAINLINE: refs/heads/master
+    steps:
+    - uses: actions/checkout@v2
+    - uses: cachix/install-nix-action@v10
+    - run: |
+         ARCH=$1
+         DISTRO=$2
+         COMMANDS=$3
+         COMMANDS="${COMMANDS//[$'\t\r\n']+/;}" #Replace newline with ;
+         ADDITIONAL_ARGS=$4
+         DEBIAN_FRONTEND=noninteractive
+         # Install support for new archs via qemu
+         # Platforms: linux/amd64, linux/arm64, linux/riscv64, linux/ppc64le, linux/s390x, linux/386, linux/arm/v7, linux/arm/v6
+         sudo apt-get update -q -y && sudo apt-get install -q -y qemu-system-aarch64 qemu-efi binfmt-support qemu-user-static
+         mkdir -p ~/.config/nix
+         sudo bash -c "echo system-features = aarch64-linux arm-linux >> /etc/nix/nix.conf"
+         sudo update-binfmts --display
+    # This also runs nix-build.
+    - uses: cachix/cachix-action@v6
+      with:
+        name: srid
+        signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+        # Only needed for private caches
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+    # This gets everything from cache, but doesn't build neuron (yet).
+    - name: Pull from Nix cache
+      run: nix-build -j4 --option system aarch64-linux --option sandbox false --extra-platforms aarch64-linux shell.nix
+    # This builds neuron, as well as run tests
+    - name: Build neuron 🔧
+      run: nix-build -j4 --option system aarch64-linux --option sandbox false --extra-platforms aarch64-linux ci.nix
+    # macOS is not supported: https://github.com/matthewbauer/nix-bundle/issues/17
+    - name: Bundle up
+      if: ${{ github.ref == env.MAINLINE && runner.os == 'Linux' }}
+      run: |
+        git clone https://github.com/srid/nix-bundle.git tmp/nix-bundle
+        cd tmp/nix-bundle
+        ./nix-bundle.sh '(import ../.. {})' /bin/neuron > ../../neuron-aarch64-bundle
+        cd -
+        mkdir ~/bundle
+        cp neuron-aarch64-bundle ~/bundle/neuron
+        chmod a+x neuron-aarch64-bundle ~/bundle/neuron
+    - name: Upload bundle as artifact 
+      uses: actions/upload-artifact@v2
+      if: ${{ github.ref == env.MAINLINE && runner.os == 'Linux' }}
+      with:
+        name: neuron-bundle-aarch64
+        path: ~/bundle/neuron
+    - name: Get current date and time
+      id: date
+      run: echo "::set-output name=date::$(date +'%Y-%m-%d %H:%M:%S')"
+    - name: Upload bundle to nightly release
+      uses: meeDamian/github-release@v2.0.3
+      if: ${{ github.ref == env.MAINLINE && runner.os == 'Linux' }}
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        tag: nightly
+        name: Neuron nightly
+        body: >
+          Current build of Neuron from `${{ env.MAINLINE }}` branch -
+          last updated on ${{ steps.date.outputs.date }}.
+        prerelease: true
+        files: neuron-aarch64-bundle
+        gzip: false
+        allow_override: true
+
