@@ -9,7 +9,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
     env:
-      MAINLINE: refs/heads/master
+      MAINLINE: refs/heads/add-workflow-aarch64
     steps:
     - uses: actions/checkout@v2
     - uses: cachix/install-nix-action@v10
