@@ -5,12 +5,14 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 3000
     strategy:
       matrix:
         os: [ubuntu-latest]
     env:
       MAINLINE: refs/heads/add-workflow-aarch64
     steps:
+      timeout-minutes: 2880
     - uses: actions/checkout@v2
     - uses: cachix/install-nix-action@v10
     - run: |
