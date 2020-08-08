@@ -12,7 +12,7 @@ in {
   pkgs ? import nixpkgsSrc { inherit system; },
   # Cabal project name
   name ? "neuron",
-  compiler ? "ghc883",
+  compiler ? pkgs.haskellPackages,
   withHoogle ? false,
   ...
 }:
