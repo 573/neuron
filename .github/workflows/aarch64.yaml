@@ -37,11 +37,11 @@ jobs:
     # This gets everything from cache, but doesn't build neuron (yet).
     - name: Pull from Nix cache
       timeout-minutes: 3000
-      run: nix-build -j4 --option system aarch64-linux --option sandbox false --extra-platforms aarch64-linux --expr 'import ./shell.nix { compiler = (import <nixpkgs> {}).haskell.packages.ghc883; }'
+      run: nix-build -j4 --option system aarch64-linux --option sandbox false --extra-platforms aarch64-linux --expr 'import ./shell.nix { overlays = [ (import ./no-check-overlay.nix) ] ; compiler = (import <nixpkgs> {}).haskell.packages.ghc883; }'
     # This builds neuron, as well as run tests
     - name: Build neuron 🔧
       timeout-minutes: 3000
-      run: nix-build -j4 --option system aarch64-linux --option sandbox false --extra-platforms aarch64-linux --expr 'import ./ci.nix { compiler = (import <nixpkgs> {}).haskell.packages.ghc883; }'
+      run: nix-build -j4 --option system aarch64-linux --option sandbox false --extra-platforms aarch64-linux --expr 'import ./ci.nix { overlays = [ (import ./no-check-overlay.nix) ] ; compiler = (import <nixpkgs> {}).haskell.packages.ghc883; }'
     # macOS is not supported: https://github.com/matthewbauer/nix-bundle/issues/17
     - name: Bundle up
       if: ${{ github.ref == env.MAINLINE && runner.os == 'Linux' }}
